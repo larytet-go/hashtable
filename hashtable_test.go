@@ -2,7 +2,6 @@ package hashtable
 
 import (
 	"fmt"
-	"github.com/cespare/xxhash"
 	"log"
 	"math"
 	"math/rand"
@@ -71,16 +70,16 @@ func TestModulo(t *testing.T) {
 func BenchmarkHashtableLoadMutlithread(b *testing.B) {
 	b.ReportAllocs()
 	h := New(2*b.N, 64)
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	hashes := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		key := fmt.Sprintf("%d", b.N-i)
+		key := uint64(b.N - i)
 		keys[i] = key
-		hashes[i] = xxhash.Sum64String(key)
+		hashes[i] = key
 	}
 	for i := 0; i < b.N; i++ {
 		key := keys[i]
-		if ok := h.Store(key, hashes[i], uintptr(i)); !ok {
+		if ok := h.Store(uint64(key), hashes[i], uintptr(i)); !ok {
 			b.Fatalf("Failed to add item %d, %v", i, key)
 		}
 	}
@@ -94,7 +93,7 @@ func BenchmarkHashtableLoadMutlithread(b *testing.B) {
 	}
 	ch := make(chan int, threads)
 	b.ResetTimer()
-	for thread := 0; thread < threads; thread += 1 {
+	for thread := 0; thread < threads; thread++ {
 		go func(thread int) {
 			for j := 0; j < b.N; j++ {
 				v, ok, _ := h.Load(keys[j], hashes[j])
@@ -148,12 +147,12 @@ func BenchmarkSmallMapLookup(b *testing.B) {
 
 func BenchmarkSmallHashtableLookup(b *testing.B) {
 	size := SmallTableSize
-	keys := make([]string, size, size)
+	keys := make([]uint64, size, size)
 	hashes := make([]uint64, size, size)
 	for i := 0; i < size; i++ {
-		key := fmt.Sprintf("%d", i)
+		key := uint64(i)
 		keys[i] = key
-		hashes[i] = xxhash.Sum64String(key)
+		hashes[i] = key
 	}
 	h := New(4*size, 64)
 	for i := 0; i < size; i++ {
@@ -206,11 +205,11 @@ func BenchmarkMapMutex(b *testing.B) {
 
 func BenchmarkMapChannel(b *testing.B) {
 	keysCount := 100
-	keys := make([]string, keysCount, keysCount)
+	keys := make([]uint64, keysCount, keysCount)
 	for i := 0; i < keysCount; i++ {
-		keys[i] = fmt.Sprintf("%d", b.N-i)
+		keys[i] = uint64(b.N - i)
 	}
-	m := make(map[string]int, keysCount)
+	m := make(map[uint64]int, keysCount)
 	insertCh := make(chan int)
 	deleteCh := make(chan int)
 	exitCh := make(chan int)
@@ -230,10 +229,10 @@ func BenchmarkMapChannel(b *testing.B) {
 	}()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for idx, _ := range keys {
+		for idx := range keys {
 			insertCh <- idx
 		}
-		for idx, _ := range keys {
+		for idx := range keys {
 			deleteCh <- idx
 		}
 	}
@@ -248,19 +247,19 @@ func TestHashtable(t *testing.T) {
 	size := 10
 	h := New(2*size, 4)
 	for i := 0; i < size; i++ {
-		key := fmt.Sprintf("%d", i)
-		ok := h.Store(key, xxhash.Sum64String(key), uintptr(i))
+		key := uint64(i)
+		ok := h.Store(key, key, uintptr(i))
 		if !ok {
 			t.Fatalf("Failed to store value %v in the hashtable", i)
 		}
 	}
-	ok := h.Store("0", xxhash.Sum64String("0"), uintptr(0))
+	ok := h.Store(0, 0, uintptr(0))
 	if ok {
 		t.Fatalf("Added same key to the hashtable")
 	}
 	for i := 0; i < size; i++ {
-		key := fmt.Sprintf("%d", i)
-		v, ok, _ := h.Load(key, xxhash.Sum64String(key))
+		key := uint64(i)
+		v, ok, _ := h.Load(key, key)
 		if !ok {
 			t.Logf("%v", h.data)
 			t.Fatalf("Failed to find key %v in the hashtable", key)
@@ -270,8 +269,8 @@ func TestHashtable(t *testing.T) {
 		}
 	}
 	for i := 0; i < size; i++ {
-		key := fmt.Sprintf("%d", i)
-		v, ok := h.Remove(key, xxhash.Sum64String(key))
+		key := uint64(i)
+		v, ok := h.Remove(key, key)
 		if !ok {
 			t.Fatalf("Failed to remove key %v from the hashtable", key)
 		}
@@ -280,8 +279,8 @@ func TestHashtable(t *testing.T) {
 		}
 	}
 	for i := 0; i < size; i++ {
-		key := fmt.Sprintf("%d", i)
-		v, ok, _ := h.Load(key, xxhash.Sum64String(key))
+		key := uint64(i)
+		v, ok, _ := h.Load(key, key)
 		if ok {
 			t.Fatalf("Found key %v in the empty hashtable", key)
 		}
@@ -308,11 +307,11 @@ func prepareNonuniform(size int) []int {
 
 // Run the same test with the Go map API for comparison
 func BenchmarkMapStore(b *testing.B) {
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		keys[i] = fmt.Sprintf("%d", b.N-i)
+		keys[i] = uint64(b.N - i)
 	}
-	m := make(map[string]uintptr, b.N)
+	m := make(map[uint64]uintptr, b.N)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		key := keys[i]
@@ -321,8 +320,8 @@ func BenchmarkMapStore(b *testing.B) {
 }
 
 func BenchmarkMapStoreSameKey(b *testing.B) {
-	m := make(map[string]uintptr, b.N)
-	key := "0"
+	m := make(map[uint64]uintptr, b.N)
+	key := uint64(0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		m[key] = uintptr(i)
@@ -330,12 +329,12 @@ func BenchmarkMapStoreSameKey(b *testing.B) {
 }
 
 func BenchmarkMapStoreNonuniform(b *testing.B) {
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		keys[i] = fmt.Sprintf("%d", b.N-i)
+		keys[i] = uint64(b.N - i)
 	}
 	samples := prepareNonuniform(b.N)
-	m := make(map[string]uintptr, b.N)
+	m := make(map[uint64]uintptr, b.N)
 	b.ResetTimer()
 	skipped := 0
 	for i := 0; i < b.N; i++ {
@@ -351,12 +350,12 @@ func BenchmarkMapStoreNonuniform(b *testing.B) {
 }
 
 func BenchmarkMapLoadNonuniform(b *testing.B) {
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		keys[i] = fmt.Sprintf("%d", b.N-i)
+		keys[i] = uint64(b.N - i)
 	}
 	samples := prepareNonuniform(b.N)
-	m := make(map[string]uintptr, b.N)
+	m := make(map[uint64]uintptr, b.N)
 	for i := 0; i < b.N; i++ {
 		sample := samples[i]
 		key := keys[sample]
@@ -378,12 +377,12 @@ func BenchmarkHashtableStore(b *testing.B) {
 	b.ReportAllocs()
 	//b.N = 100 * 1000
 	h := New(2*b.N, 64)
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	hashes := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		key := fmt.Sprintf("%d", b.N-i)
+		key := uint64(b.N - i)
 		keys[i] = key
-		hashes[i] = xxhash.Sum64String(key)
+		hashes[i] = key
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -399,12 +398,12 @@ func BenchmarkHashtableStore(b *testing.B) {
 func BenchmarkHashtableLoad(b *testing.B) {
 	b.ReportAllocs()
 	h := New(2*b.N, 64)
-	keys := make([]string, b.N, b.N)
+	keys := make([]uint64, b.N, b.N)
 	hashes := make([]uint64, b.N, b.N)
 	for i := 0; i < b.N; i++ {
-		key := fmt.Sprintf("%d", b.N-i)
+		key := uint64(b.N - i)
 		keys[i] = key
-		hashes[i] = xxhash.Sum64String(key)
+		hashes[i] = key
 	}
 	for i := 0; i < b.N; i++ {
 		key := keys[i]
@@ -459,7 +458,7 @@ func BenchmarkRandomMemoryAccess(b *testing.B) {
 		// This line is responsible for 85% of the execution time
 		it := array[idx]
 		if it != 0 {
-			inUseCount += 1
+			inUseCount++
 		}
 	}
 	b.StopTimer()
