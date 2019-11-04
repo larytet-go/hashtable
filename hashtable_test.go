@@ -5,11 +5,12 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"mcachego/hashtable/xorshift64star"
 	"runtime"
 	"sync"
 	"testing"
 	"unsafe"
+
+	"github.com/larytet-go/hashtable/xorshift64star"
 )
 
 type A struct {
